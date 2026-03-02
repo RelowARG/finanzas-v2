@@ -1,0 +1,20 @@
+# Usamos una versión ligera de Node.js
+FROM node:18-alpine
+
+# Creamos el directorio de trabajo
+WORKDIR /app
+
+# Copiamos los archivos de dependencias primero (para optimizar la caché de Docker)
+COPY package*.json ./
+
+# Instalamos las dependencias
+RUN npm install --production
+
+# Copiamos el resto del código del backend
+COPY . .
+
+# Exponemos el puerto que usa tu servidor (según tu configuración anterior es el 5001)
+EXPOSE 5001
+
+# Comando para arrancar el servidor en modo producción (siempre encendido)
+CMD ["npm", "start"]
