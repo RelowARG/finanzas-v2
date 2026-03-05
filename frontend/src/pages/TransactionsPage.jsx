@@ -14,6 +14,7 @@ const emptyForm = {
   notes: '',
   usd_amount: '',
   exchange_rate: '',
+  currency: 'ARS',
 };
 
 export default function TransactionsPage() {
@@ -58,6 +59,7 @@ export default function TransactionsPage() {
       notes: tx.notes || '',
       usd_amount: tx.usd_amount || '',
       exchange_rate: tx.exchange_rate || '',
+      currency: tx.usd_amount && tx.type !== 'savings' ? 'USD' : 'ARS',
     });
     setEditId(tx.id);
     setShowModal(true);
@@ -65,7 +67,7 @@ export default function TransactionsPage() {
 
   // Al cambiar tipo a savings, limpiar category_id
   const setType = (t) => {
-    setForm(f => ({ ...f, type: t, category_id: '', usd_amount: '', exchange_rate: '' }));
+    setForm(f => ({ ...f, type: t, category_id: '', usd_amount: '', exchange_rate: '', currency: 'ARS' }));
   };
 
   // Auto-calcular ARS cuando cambian USD o tipo de cambio
@@ -90,10 +92,12 @@ export default function TransactionsPage() {
     if (form.type === 'savings' && !form.exchange_rate) return toast.error('Ingresá el tipo de cambio');
     setSaving(true);
     try {
+      const isSavings = form.type === 'savings';
+      const isUSD = form.currency === 'USD' && !isSavings;
       const payload = {
         ...form,
-        usd_amount: form.type === 'savings' ? form.usd_amount : null,
-        exchange_rate: form.type === 'savings' ? form.exchange_rate : null,
+        usd_amount: isSavings ? form.usd_amount : isUSD ? form.amount : null,
+        exchange_rate: isSavings ? form.exchange_rate : null,
       };
       if (editId) {
         await transactionsAPI.update(editId, payload);
@@ -199,6 +203,11 @@ export default function TransactionsPage() {
                           USD {parseFloat(tx.usd_amount).toFixed(2)} @ ${parseFloat(tx.exchange_rate).toLocaleString('es-AR')}
                         </div>
                       )}
+                      {tx.type !== 'savings' && tx.usd_amount && (
+                        <div style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 600 }}>
+                          💵 USD {parseFloat(tx.usd_amount).toFixed(2)}
+                        </div>
+                      )}
                       {tx.bank && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tx.bank}</div>}
                     </td>
                     <td>
@@ -272,16 +281,40 @@ export default function TransactionsPage() {
                 </div>
                 <div className="form-group">
                   <label className="label">
-                    {form.type === 'savings' ? 'Total ARS (calculado)' : 'Monto (ARS)'}
+                    {form.type === 'savings' ? 'Total ARS (calculado)' : 'Monto'}
                   </label>
-                  <input type="number" className="input" placeholder="0" step="0.01" min="0"
-                    value={form.amount}
-                    onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                    readOnly={form.type === 'savings' && !!form.usd_amount && !!form.exchange_rate}
-                    style={{ opacity: form.type === 'savings' && form.usd_amount && form.exchange_rate ? 0.6 : 1 }}
-                    required />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {form.type !== 'savings' && (
+                      <select
+                        value={form.currency}
+                        onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+                        style={{
+                          background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
+                          color: form.currency === 'USD' ? '#60a5fa' : 'var(--text)',
+                          padding: '0 8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <option value="ARS">ARS</option>
+                        <option value="USD">USD</option>
+                      </select>
+                    )}
+                    <input type="number" className="input" placeholder="0" step="0.01" min="0"
+                      value={form.amount}
+                      onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                      readOnly={form.type === 'savings' && !!form.usd_amount && !!form.exchange_rate}
+                      style={{ opacity: form.type === 'savings' && form.usd_amount && form.exchange_rate ? 0.6 : 1 }}
+                      required />
+                  </div>
                 </div>
               </div>
+
+              {/* Indicador moneda USD para gastos/ingresos */}
+              {form.type !== 'savings' && form.currency === 'USD' && (
+                <div style={{ padding: '0.6rem 0.85rem', background: 'rgba(96,165,250,0.08)', borderRadius: 8, border: '1px solid rgba(96,165,250,0.2)', fontSize: '0.82rem', color: '#60a5fa' }}>
+                  💵 Esta transacción se guardará en dólares. El monto en ARS se puede calcular después.
+                </div>
+              )}
 
               {/* Campos extra para savings */}
               {form.type === 'savings' && (
